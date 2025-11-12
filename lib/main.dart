@@ -16,6 +16,9 @@ class MediTimeApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const DashboardScreen(),
+      routes: {
+        '/cadastro': (context) => const CadastroMedicamentoScreen(),
+      },
     );
   }
 }
@@ -23,7 +26,6 @@ class MediTimeApp extends StatelessWidget {
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
-  // Mock de lista de medicamentos, será dinâmica no futuro
   final List<Map<String, String>> medicamentos = const [
     {
       "nome": "Atenolol",
@@ -50,7 +52,6 @@ class DashboardScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Saudação e data
               Text(
                 "Olá, Usuário 👋",
                 style: Theme.of(context).textTheme.headlineSmall,
@@ -61,7 +62,6 @@ class DashboardScreen extends StatelessWidget {
                 style: TextStyle(color: Colors.grey[700]),
               ),
               const SizedBox(height: 24),
-              // Card de alerta de medicação
               Card(
                 color: Colors.red[50],
                 child: ListTile(
@@ -72,31 +72,31 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              // Lista de medicamentos do dia
               Text(
                 "Medicamentos de Hoje:",
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 12),
               ...medicamentos.map((med) => Card(
-                elevation: 0,
-                color: Colors.indigo[50],
-                child: ListTile(
-                  leading: Icon(Icons.medication_outlined, color: Colors.indigo),
-                  title: Text(med['nome'] ?? ''),
-                  subtitle: Text("Hora: ${med['hora']} | Dose: ${med['dose']}"),
-                  trailing: Icon(Icons.check_circle_outline, color: Colors.greenAccent),
-                ),
-              )),
+                    elevation: 0,
+                    color: Colors.indigo[50],
+                    child: ListTile(
+                      leading: Icon(Icons.medication_outlined, color: Colors.indigo),
+                      title: Text(med['nome'] ?? ''),
+                      subtitle: Text("Hora: ${med['hora']} | Dose: ${med['dose']}"),
+                      trailing: Icon(Icons.check_circle_outline, color: Colors.greenAccent),
+                    ),
+                  )),
               const SizedBox(height: 24),
-              // Botões de ações rápidas
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   ElevatedButton.icon(
                     icon: const Icon(Icons.add),
                     label: const Text("Novo Medicamento"),
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/cadastro');
+                    },
                   ),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.history),
@@ -109,6 +109,86 @@ class DashboardScreen extends StatelessWidget {
               Text(
                 "Mais alertas e resumo serão exibidos aqui...",
                 style: TextStyle(color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CadastroMedicamentoScreen extends StatefulWidget {
+  const CadastroMedicamentoScreen({super.key});
+
+  @override
+  _CadastroMedicamentoScreenState createState() => _CadastroMedicamentoScreenState();
+}
+
+class _CadastroMedicamentoScreenState extends State<CadastroMedicamentoScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _nomeController = TextEditingController();
+  final TextEditingController _horaController = TextEditingController();
+  final TextEditingController _doseController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _horaController.dispose();
+    _doseController.dispose();
+    super.dispose();
+  }
+
+  void _submitForm() {
+    if (_formKey.currentState?.validate() ?? false) {
+      // Aqui você pode processar os dados do formulário (exibir, salvar, etc)
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Cadastrar Medicamento'),
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              TextFormField(
+                controller: _nomeController,
+                decoration: const InputDecoration(
+                  labelText: 'Nome do Medicamento',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) => value == null || value.isEmpty ? 'Informe o nome' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _horaController,
+                decoration: const InputDecoration(
+                  labelText: 'Hora (ex: 14:00)',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) => value == null || value.isEmpty ? 'Informe a hora' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _doseController,
+                decoration: const InputDecoration(
+                  labelText: 'Dose',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) => value == null || value.isEmpty ? 'Informe a dose' : null,
+              ),
+              const SizedBox(height: 30),
+              ElevatedButton(
+                onPressed: _submitForm,
+                child: const Text('Salvar'),
               ),
             ],
           ),
