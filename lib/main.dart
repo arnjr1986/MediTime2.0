@@ -23,6 +23,20 @@ class MediTimeApp extends StatelessWidget {
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
+  // Mock de lista de medicamentos, será dinâmica no futuro
+  final List<Map<String, String>> medicamentos = const [
+    {
+      "nome": "Atenolol",
+      "hora": "14:00",
+      "dose": "1 comprimido",
+    },
+    {
+      "nome": "Amoxicilina",
+      "hora": "19:00",
+      "dose": "2 cápsulas",
+    },
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -58,6 +72,23 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
+              // Lista de medicamentos do dia
+              Text(
+                "Medicamentos de Hoje:",
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 12),
+              ...medicamentos.map((med) => Card(
+                elevation: 0,
+                color: Colors.indigo[50],
+                child: ListTile(
+                  leading: Icon(Icons.medication_outlined, color: Colors.indigo),
+                  title: Text(med['nome'] ?? ''),
+                  subtitle: Text("Hora: ${med['hora']} | Dose: ${med['dose']}"),
+                  trailing: Icon(Icons.check_circle_outline, color: Colors.greenAccent),
+                ),
+              )),
+              const SizedBox(height: 24),
               // Botões de ações rápidas
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -74,7 +105,6 @@ class DashboardScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              // Espaço para mais componentes no futuro
               const SizedBox(height: 24),
               Text(
                 "Mais alertas e resumo serão exibidos aqui...",
