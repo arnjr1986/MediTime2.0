@@ -1,54 +1,37 @@
-# Human-Machine Interface (HMI)
+# Human-Machine Interface (MediTime HMI)
 
-## User Flow
-The application follows a linear and intuitive flow designed for ease of use.
+## User Flows
 
-### 1. Authentication
--   **Screen**: `LoginScreen`
--   **Action**: User enters Email/Password or selects "Entrar como Convidado".
--   **Feedback**: Loading spinner during auth, SnackBar on error.
+### 1. Adicionar Medicamento (Novo Fluxo de Estoque)
+1.  **Tela Inicial**: Clicar no botão (+).
+2.  **Formulário**:
+    - Preencher Nome, Dosagem.
+    - **Estoque**: Inserir "Qtd Total" e "Qtd/Dose".
+    - **Obs**: Ver caixa azul "Estimativa" aparecer em tempo real.
+    - **Cor**: O sistema atribui uma cor pastel automaticamente.
+3.  **Salvar**: Clicar em "SALVAR RECEITA".
+4.  **Resultado**: O card aparece na lista com a badge de estoque.
 
-![Login Screen](images/01_login.png)
+### 2. Verificar Calendário (Novo Fluxo Visual)
+1.  **Dashboard**: Clicar no ícone de Calendário (Barra inferior).
+2.  **Visualização**:
+    - Dias com remédios têm "dots" coloridos.
+    - A cor do dot corresponde à cor do medicamento na Lista.
+3.  **Seleção**: Clicar em um dia exibe a lista detalhada abaixo.
 
-### 2. Dashboard (Home)
--   **Screen**: `HomeScreen`
--   **Action**: Central hub to navigate to Medications, Calendar, or Profile.
+## Screenshots
 
-![Dashboard](images/02_dashboard.png)
+### Lista de Medicamentos (Alertas de Estoque)
+Visualização clara dos badges de estoque ("FALTAM 20!"). A cor lateral indica a identidade visual do remédio.
 
-### 3. Medication List
--   **Screen**: `MedsListScreen`
--   **Display**: Cards showing Med Name, Dosage, Type Icon, and Doctor.
--   **Actions**:
-    -   **Add**: FAB (+) opens Form.
-    -   **Edit**: Pencil icon on card.
-    -   **Delete**: Trash icon on card.
+![Stock Alert Badge](file:///C:/Users/Arn/.gemini/antigravity/brain/39c263f4-578e-4032-8f00-019b374eb70b/meds_list_stock_1768808607918.png)
 
-![Medication List](images/03_meds_list.png)
+### Calendário (Visualização Mensal)
+Integração de cores para fácil leitura rápida.
 
-### 4. Adding/Editing Medication
--   **Screen**: `AddMedicationScreen`
--   **Top Section**: Basic Info (Name, Type, Dosage).
-    -   *UX*: Autocomplete for common names.
-    -   *UX*: Dropdown for types.
+![Calendar View](file:///C:/Users/Arn/.gemini/antigravity/brain/39c263f4-578e-4032-8f00-019b374eb70b/calendar_view_1768808691726.png)
 
-![Form Top](images/04_add_med_top.png)
-
--   **Bottom Section**: Schedule, Visuals, Notes.
-    -   *UX*: Dynamic scheduling (Fixed vs Interval).
-    -   *UX*: Image Picker for prescriptions.
-
-![Form Bottom](images/05_add_med_bottom.png)
-
-### 5. Calendar View
--   **Screen**: `CalendarScreen`
--   **Display**: Monthly view with markers for days with scheduled meds.
--   **Action**: Select a day to see the list for that specific date.
-
-![Calendar](images/06_calendar.png)
-
-## UX Guidelines
-1.  **Accessibility**: Large touch targets (min 48px), high contrast colors (Teal/White).
-2.  **Feedback**: Every destructive action (delete) or save action shows a visible confirmation (SnackBar/Dialog).
-3.  **Validation**: Forms do not submit without required fields (Name, Dosage). Invalid fields highlight in red with error text.
-4.  **Resilience**: App works offline (cached data) and persists state across reloads (even on Web).
+## Regras de UX
+- **Tamanho de Toque**: Botões e Inputs com altura mínima de 55px.
+- **Feedback**: Snackbars para ações (Salvar, Tomar Dose).
+- **Cores**: Semânticas para estoque (Vermelho=Crítico, Verde=Ok), Pastel para identidade.

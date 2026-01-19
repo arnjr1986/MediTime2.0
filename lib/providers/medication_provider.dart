@@ -29,6 +29,8 @@ class MedicationNotifier extends Notifier<List<Medication>> {
       type: med.type,
       totalQuantity: med.totalQuantity,
       quantityPerDose: med.quantityPerDose,
+      remainingQuantity: med.remainingQuantity,
+      color: med.color,
       doctorName: med.doctorName,
       reason: med.reason,
       startDate: med.startDate,
@@ -42,17 +44,59 @@ class MedicationNotifier extends Notifier<List<Medication>> {
     );
     state = [...state, newMed];
 
-    // Schedule notifications for each time in the list
+    // Schedule notifications
+    _scheduleNotifications(newMed);
+  }
+
+  Future<void> takeDose(int medId) async {
+    final index = state.indexWhere((m) => m.id == medId);
+    if (index == -1) return;
+
+    final oldMed = state[index];
+    final newQty = oldMed.remainingQuantity - oldMed.quantityPerDose;
+
+    final updatedMed = Medication(
+      id: oldMed.id,
+      name: oldMed.name,
+      dosage: oldMed.dosage,
+      type: oldMed.type,
+      totalQuantity: oldMed.totalQuantity,
+      quantityPerDose: oldMed.quantityPerDose,
+      remainingQuantity: newQty < 0 ? 0 : newQty, // Prevent negative
+      color: oldMed.color,
+      doctorName: oldMed.doctorName,
+      reason: oldMed.reason,
+      startDate: oldMed.startDate,
+      endDate: oldMed.endDate,
+      notes: oldMed.notes,
+      imagePath: oldMed.imagePath,
+      scheduleMode: oldMed.scheduleMode,
+      intervalHours: oldMed.intervalHours,
+      timeList: oldMed.timeList,
+      daysOfWeek: oldMed.daysOfWeek,
+    );
+
+    // Optimistic Update
+    state = [
+      ...state.sublist(0, index),
+      updatedMed,
+      ...state.sublist(index + 1),
+    ];
+
+    await LocalDB.updateMedication(updatedMed);
+  }
+
+  void _scheduleNotifications(Medication med) {
     for (int i = 0; i < med.timeList.length; i++) {
       final timeParts = med.timeList[i].split(':');
       if (timeParts.length == 2) {
         final hour = int.tryParse(timeParts[0]) ?? 8;
         final minute = int.tryParse(timeParts[1]) ?? 0;
-        // Use a unique ID combination: medId * 100 + index
-        await NotificationService.scheduleNotification(
-          id: (id * 100) + i,
+        NotificationService.scheduleNotification(
+          id: (med.id! * 100) + i,
           title: 'Hora do Remédio: ${med.name}',
-          body: 'Tome ${med.dosage}',
+          body:
+              'Tome ${med.dosage}. Estoque: ${med.remainingQuantity} restantes.',
           hour: hour,
           minute: minute,
         );

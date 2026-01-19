@@ -33,6 +33,26 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _loginAnonymously() async {
+    setState(() => _isLoading = true);
+    try {
+      await _authService.signInAnonymously();
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erro: $e"), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,25 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                       const SizedBox(height: 16),
                       TextButton(
-                        onPressed: () async {
-                          setState(() => _isLoading = true);
-                          try {
-                            await _authService.signInAnonymously();
-                            if (mounted)
-                              Navigator.pushReplacementNamed(context, '/home');
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text("Erro: $e"),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          } finally {
-                            if (mounted) setState(() => _isLoading = false);
-                          }
-                        },
+                        onPressed: _loginAnonymously,
                         child: const Text('Entrar como Convidado'),
                       ),
                     ],

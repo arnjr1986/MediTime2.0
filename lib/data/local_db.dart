@@ -21,15 +21,28 @@ class LocalDB {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 4,
       onCreate: (db, version) async {
-        print("DEBUG: Creating medications table (v$version)");
+        debugPrint("DEBUG: Creating medications table (v$version)");
         await _createTable(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        print("DEBUG: Upgrading DB from $oldVersion to $newVersion");
-        await db.execute('DROP TABLE IF EXISTS medications');
-        await _createTable(db);
+        debugPrint("DEBUG: Upgrading DB from $oldVersion to $newVersion");
+        if (oldVersion < 2) {
+          await db.execute('DROP TABLE IF EXISTS medications');
+          await _createTable(db);
+        } else if (oldVersion < 3) {
+          await db.execute(
+            'ALTER TABLE medications ADD COLUMN remainingQuantity INTEGER DEFAULT 0',
+          );
+          await db.execute(
+            'ALTER TABLE medications ADD COLUMN color INTEGER DEFAULT 0xFF4CAF50',
+          );
+        } else if (oldVersion < 4) {
+          await db.execute(
+            'ALTER TABLE medications ADD COLUMN color INTEGER DEFAULT 0xFF4CAF50',
+          );
+        }
       },
     );
   }
@@ -43,6 +56,8 @@ class LocalDB {
         type TEXT,
         totalQuantity INTEGER,
         quantityPerDose INTEGER,
+        remainingQuantity INTEGER,
+        color INTEGER,
         doctorName TEXT,
         reason TEXT,
         startDate TEXT,
@@ -72,13 +87,15 @@ class LocalDB {
     final prefs = await SharedPreferences.getInstance();
     final String data = jsonEncode(meds.map((e) => e.toMap()).toList());
     await prefs.setString(_webKey, data);
-    print("DEBUG: Saved ${meds.length} medications to SharedPreferences (Web)");
+    debugPrint(
+      "DEBUG: Saved ${meds.length} medications to SharedPreferences (Web)",
+    );
   }
 
   // --- CRUD Operations ---
 
   static Future<int> insertMedication(Medication med) async {
-    print('DEBUG: Insert Medication: ${med.toMap()}');
+    debugPrint('DEBUG: Insert Medication: ${med.toMap()}');
 
     if (kIsWeb) {
       final meds = await _getWebMedications();
@@ -113,10 +130,10 @@ class LocalDB {
 
   static Future<List<Medication>> getMedications() async {
     if (kIsWeb) {
-      print('DEBUG: Fetching medications from SharedPreferences (Web)');
+      debugPrint('DEBUG: Fetching medications from SharedPreferences (Web)');
       return await _getWebMedications();
     } else {
-      print('DEBUG: Fetching medications from SQLite');
+      debugPrint('DEBUG: Fetching medications from SQLite');
       final db = await database;
       final List<Map<String, dynamic>> maps = await db.query('medications');
       return List.generate(maps.length, (i) => Medication.fromMap(maps[i]));
@@ -124,7 +141,7 @@ class LocalDB {
   }
 
   static Future<int> updateMedication(Medication med) async {
-    print('DEBUG: Update Medication: ${med.toMap()}');
+    debugPrint('DEBUG: Update Medication: ${med.toMap()}');
 
     if (kIsWeb) {
       final meds = await _getWebMedications();
@@ -147,7 +164,7 @@ class LocalDB {
   }
 
   static Future<int> deleteMedication(int id) async {
-    print('DEBUG: Delete Medication ID: $id');
+    debugPrint('DEBUG: Delete Medication ID: $id');
 
     if (kIsWeb) {
       final meds = await _getWebMedications();

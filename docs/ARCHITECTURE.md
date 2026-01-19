@@ -1,47 +1,59 @@
-# Architecture & Design
+# MediTime Architecture
 
-## System Overview
-MediTime follows a **Clean Architecture** inspired approach, separating the application into distinct layers: Presentation, Domain/Providers, Data, and Core Services.
+## 1. Overview
+MediTime is a Flutter application designed for elderly users to manage medications. It utilizes a **Clean Architecture** approach with **Riverpod** for state management and **SQLite** for local persistence.
 
-## 1. Layer Diagram
+## 2. Layers
+
+### Presentation Layer
+- **Screens**: `LoginScreen`, `MedsListScreen`, `CalendarScreen`, `AddMedicationScreen`.
+- **State Management**: `ConsumerWait` / `ConsumerStatefulWidget` using Riverpod.
+- **Theme**: High contrast, large fonts, accessibility-first design.
+
+### Domain Layer (Models)
+- **`Medication` Model**:
+  - Core logic for "Smart Stock".
+  - Getters: `stockStatus` (CRITICAL, LOW, SURPLUS), `stockDescription` ("FALTAM 20!"), `dosesNeeded`.
+  - **Color Logic**: Stores `int color` (ARGB) for consistent UI coding.
+
+### Data Layer
+- **`LocalDB`**: Singleton wrapper around `sqflite` (Android/iOS) and `SharedPreferences` (Web fallback).
+- **`MedicationProvider`**: Riverpod `StateNotifier` acting as the Controller/Repository bridge.
+
+## 3. Data Flow
+
+### Smart Stock Logic
+1.  **Input**: User enters `totalQuantity` (e.g., 10), `quantityPerDose` (e.g., 1), `startDate`, `endDate`.
+2.  **Calculation**: `Medication` model calculates:
+    - `daysDuration` = `endDate` - `startDate`.
+    - `dosesNeeded` = `daysDuration` * (doses/day).
+    - `dosesAvailable` = `totalQuantity` / `quantityPerDose`.
+    - `missing` = `dosesNeeded` - `dosesAvailable`.
+3.  **UI Output**:
+    - **CRITICAL**: If `dosesAvailable` < 2 days worth.
+    - **LOW (Red)**: If `missing` > 0.
+    - **SURPLUS (Green)**: If `missing` <= 0.
+
+### Color Flow
+1.  **Creation**: Random pastel color assigned in `AddMedicationScreen`.
+2.  **Storage**: Color saved as `INTEGER` in SQLite.
+3.  **Display**:
+    - **List**: Left-border strip & Icon color.
+    - **Calendar**: Dot marker color for each day.
+
+## 4. Mermaid Diagram
 
 ```mermaid
 graph TD
-    UI[UI Layer (Screens)] -->|Watches| Prov[Providers (Riverpod)]
-    Prov -->|Calls| Repo[Data Layer (LocalDB/Repos)]
-    Prov -->|Calls| Serv[Core Services (Auth, Notifs)]
-    Repo -->|Read/Write| SQLite[(SQLite - Mobile)]
-    Repo -->|Read/Write| Prefs[(SharedPrefs - Web)]
-    Serv -->|Auth| Firebase[Firebase Auth]
-    Serv -->|Schedule| Notif[Awesome Notifications]
+    UI[UI Layer] -->|Reads| Provider[MedicationProvider]
+    Provider -->|CRUD| DB[LocalDB]
+    DB -->|Persists| SQLite[(SQLite/Prefs)]
+    
+    subgraph "Smart Stock Logic"
+        Model[Medication Model]
+        Model -->|Calculates| Status[Stock Status]
+        Model -->|Calculates| Alert[Stock Alert Text]
+    end
+    
+    Provider -->|Updates| Model
 ```
-
-## 2. Data Flow
-### Adding a Medication
-1.  **User Input**: User fills `AddMedicationScreen` form.
-2.  **State Update**: `MedicationProvider.addMedication(med)` is called.
-3.  **Persistence**:
-    -   `LocalDB` detects platform.
-    -   If **Web**: Reads JSON from SharedPreferences, appends new med, saves back.
-    -   If **Mobile**: Inserts row into SQLite `medications` table.
-4.  **Notification**: `MedicationProvider` calculates trigger times and calls `NotificationService.scheduleNotification()`.
-5.  **UI Refresh**: Provider state updates, causing `MedsListScreen` to rebuild with the new item.
-
-## 3. Dependency Tree
-| Package | Purpose |
-| :--- | :--- |
-| **flutter_riverpod** | State Management (Reactive caching & binding) |
-| **sqflite** | Local Database for Android/iOS |
-| **shared_preferences** | Key-Value storage (Web Fallback) |
-| **firebase_auth** | User Authentication |
-| **awesome_notifications** | Local Scheduling of reminders |
-| **intl** | Date/Time formatting |
-| **table_calendar** | Calendar UI widget |
-| **image_picker** | Camera/Gallery access |
-| **path** | File path manipulation |
-
-## 4. Key Components
--   **MedicationModel**: Immutable data class holding all med logic.
--   **LocalDB**: Singleton helper abstracting the underlying storage engine.
--   **AuthService**: Wrapper around Firebase Auth instance.
--   **MedicationNotifier**: Central business logic unit (BLoC equivalent).

@@ -1,11 +1,12 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:medi_time/data/models/medication_model.dart';
-import 'package:medi_time/providers/medication_provider.dart';
+import '../data/models/medication_model.dart';
+import '../providers/medication_provider.dart';
 
 class AddMedicationScreen extends ConsumerStatefulWidget {
   final Medication? medication;
@@ -24,38 +25,47 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
   final _nameController = TextEditingController();
   final _dosageController = TextEditingController();
   final _totalQtyController = TextEditingController();
-  final _qtyPerDoseController = TextEditingController();
+  final _qtyPerDoseController = TextEditingController(); // Start with 1
   final _doctorController = TextEditingController();
   final _reasonController = TextEditingController();
   final _notesController = TextEditingController();
 
+  // Color
+  late int _assignedColor;
+
   // State variables
-  String _selectedType = 'Comprimido';
+  String? _selectedType = 'Comprimido';
   DateTime _startDate = DateTime.now();
   DateTime? _endDate;
   bool _isContinuous = false;
-  File? _imageFile;
+  String? _imagePath;
   String _scheduleMode = 'fixed'; // fixed, interval
   double _intervalHours = 8;
-  List<TimeOfDay> _fixedTimes = [const TimeOfDay(hour: 8, minute: 0)];
+  List<TimeOfDay> _fixedTimes = [
+    const TimeOfDay(hour: 8, minute: 0),
+  ]; // Default 8am
   final List<bool> _daysSelected = List.filled(7, true); // Mon-Sun
 
   final List<String> _commonMeds = [
     'Paracetamol',
-    'Ibuprofeno',
     'Dipirona',
-    'Amoxicilina',
+    'Ibuprofeno',
     'Omeprazol',
+    'Simeticona',
+    'Amoxicilina',
     'Losartana',
+    'Metformina',
+    'Novalgina',
+    'Dorflex',
   ];
   final List<String> _types = [
     'Comprimido',
     'Cápsula',
-    'Líquido',
-    'Injetável',
-    'Pomada',
+    'Líquido (ml)',
     'Gotas',
     'Spray',
+    'Injeção',
+    'Pomada',
   ];
 
   @override
@@ -63,47 +73,65 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
     super.initState();
     if (widget.medication != null) {
       // Load existing data
-      final med = widget.medication!;
-      _nameController.text = med.name;
-      _dosageController.text = med.dosage;
-      _selectedType = med.type;
-      _totalQtyController.text = med.totalQuantity.toString();
-      _qtyPerDoseController.text = med.quantityPerDose.toString();
-      _doctorController.text = med.doctorName ?? '';
-      _reasonController.text = med.reason ?? '';
-      _notesController.text = med.notes ?? '';
-      _startDate = med.startDate;
-      _endDate = med.endDate;
-      _isContinuous = med.endDate == null;
-      if (med.imagePath != null) _imageFile = File(med.imagePath!);
+      final m = widget.medication!;
+      _nameController.text = m.name;
+      _dosageController.text = m.dosage;
+      _selectedType = m.type;
+      _totalQtyController.text = m.totalQuantity.toString();
+      _qtyPerDoseController.text = m.quantityPerDose.toString();
+      _doctorController.text = m.doctorName ?? '';
+      _reasonController.text = m.reason ?? '';
+      _notesController.text = m.notes ?? '';
+      _startDate = m.startDate;
+      _endDate = m.endDate;
+      _isContinuous = m.endDate == null;
+      _imagePath = m.imagePath;
 
-      _scheduleMode = med.scheduleMode;
-      _intervalHours = (med.intervalHours ?? 8).toDouble();
+      _scheduleMode = m.scheduleMode;
+      _intervalHours = m.intervalHours?.toDouble() ?? 8;
+      _assignedColor = m.color;
 
-      _fixedTimes = med.timeList.map((t) {
-        final parts = t.split(':');
-        return TimeOfDay(
-          hour: int.parse(parts[0]),
-          minute: int.parse(parts[1]),
-        );
-      }).toList();
+      if (m.timeList.isNotEmpty) {
+        _fixedTimes = m.timeList.map((t) {
+          final parts = t.split(':');
+          return TimeOfDay(
+            hour: int.parse(parts[0]),
+            minute: int.parse(parts[1]),
+          );
+        }).toList();
+      } else {
+        _fixedTimes = [const TimeOfDay(hour: 8, minute: 0)]; // Default if empty
+      }
 
-      // Map daysOfWeek (1-7) to _daysSelected (0-6)
+      // Restore days selected
       _daysSelected.fillRange(0, 7, false);
-      for (final day in med.daysOfWeek) {
+      for (final day in m.daysOfWeek) {
         if (day >= 1 && day <= 7) _daysSelected[day - 1] = true;
       }
+    } else {
+      _qtyPerDoseController.text = '1';
+      // Assign random pastel color
+      final random = Random();
+      final pastels = [
+        0xFFEF9A9A,
+        0xFF90CAF9,
+        0xFFA5D6A7,
+        0xFFFFF59D,
+        0xFFCE93D8,
+        0xFFFFCC80,
+        0xFF80CBC4,
+        0xFFB39DDB,
+      ];
+      _assignedColor = pastels[random.nextInt(pastels.length)];
     }
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
-      source: ImageSource.camera,
-    ); // Or gallery
+    final pickedFile = await picker.pickImage(source: source);
     if (pickedFile != null) {
       setState(() {
-        _imageFile = File(pickedFile.path);
+        _imagePath = pickedFile.path;
       });
     }
   }
@@ -133,8 +161,9 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
       setState(() {
         if (isStart) {
           _startDate = picked;
-          if (_endDate != null && _endDate!.isBefore(_startDate))
+          if (_endDate != null && _endDate!.isBefore(_startDate)) {
             _endDate = null;
+          }
         } else {
           _endDate = picked;
         }
@@ -144,12 +173,8 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
 
   void _save() {
     if (!_formKey.currentState!.validate()) return;
-    if (_fixedTimes.isEmpty && _scheduleMode == 'fixed') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Adicione pelo menos um horário')),
-      );
-      return;
-    }
+
+    // Check days selected
     if (!_daysSelected.contains(true)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecione pelo menos um dia da semana')),
@@ -157,48 +182,49 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
       return;
     }
 
-    // Convert fixed times to List<String>
-    List<String> timeList = [];
-    if (_scheduleMode == 'fixed') {
-      timeList = _fixedTimes
-          .map(
-            (t) =>
-                '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
-          )
-          .toList();
-    } else {
-      // For interval, calculate times starting from startDate 8:00 (simplification)
-      // or just store the interval and handle display logic.
-      // Requirements say "fixo multi time_picker OU slider".
-      // Let's store empty timeList for interval or generate some base times?
-      // Model expects timeList for compatibility, but logic handles scheduleMode.
-      timeList = ['08:00']; // Default start for interval
+    if (_fixedTimes.isEmpty && _scheduleMode == 'fixed') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Adicione pelo menos um horário')),
+      );
+      return;
     }
 
-    final days = <int>[];
+    List<String> timeList = _scheduleMode == 'fixed'
+        ? _fixedTimes
+              .map(
+                (t) =>
+                    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
+              )
+              .toList()
+        : [];
+
+    // Convert boolean list to days logic (1-7)
+    final daysOfWeek = <int>[];
     for (int i = 0; i < 7; i++) {
-      if (_daysSelected[i]) days.add(i + 1);
+      if (_daysSelected[i]) daysOfWeek.add(i + 1);
     }
 
     final newMed = Medication(
       id: widget.medication?.id,
       name: _nameController.text,
       dosage: _dosageController.text,
-      type: _selectedType,
+      type: _selectedType ?? 'Comprimido',
       totalQuantity: int.tryParse(_totalQtyController.text) ?? 0,
       quantityPerDose: int.tryParse(_qtyPerDoseController.text) ?? 1,
+      remainingQuantity: widget.medication?.remainingQuantity,
+      color: _assignedColor,
       doctorName: _doctorController.text,
       reason: _reasonController.text,
       startDate: _startDate,
       endDate: _isContinuous ? null : _endDate,
       notes: _notesController.text,
-      imagePath: _imageFile?.path,
+      imagePath: _imagePath,
       scheduleMode: _scheduleMode,
       intervalHours: _scheduleMode == 'interval'
-          ? _intervalHours.round()
+          ? _intervalHours.toInt()
           : null,
       timeList: timeList,
-      daysOfWeek: days,
+      daysOfWeek: daysOfWeek,
     );
 
     if (widget.medication == null) {
@@ -215,6 +241,27 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
         ),
       ),
     );
+  }
+
+  String _getStockPreview() {
+    int total = int.tryParse(_totalQtyController.text) ?? 0;
+    int perDose = int.tryParse(_qtyPerDoseController.text) ?? 1;
+    if (total <= 0 || perDose <= 0) return '';
+
+    // doses available
+    int dosesAvailable = total ~/ perDose;
+
+    // Estimate daily usage
+    int dosesPerDay = 1;
+    if (_scheduleMode == 'fixed') {
+      dosesPerDay = _fixedTimes.length;
+    } else {
+      dosesPerDay = (24 / _intervalHours).floor();
+    }
+    if (dosesPerDay < 1) dosesPerDay = 1;
+
+    int daysDuration = dosesAvailable ~/ dosesPerDay;
+    return 'Estimativa: Dá para aprox. $daysDuration dias';
   }
 
   @override
@@ -238,6 +285,28 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
+
+              // Stock Preview Real-time
+              ValueListenableBuilder(
+                valueListenable: _totalQtyController,
+                builder: (ctx, val, _) {
+                  final txt = _getStockPreview();
+                  if (txt.isEmpty) return const SizedBox.shrink();
+                  return Container(
+                    padding: const EdgeInsets.all(8),
+                    color: Colors.blue.withValues(alpha: 0.1),
+                    child: Text(
+                      txt,
+                      style: const TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+
               Autocomplete<String>(
                 optionsBuilder: (text) => _commonMeds.where(
                   (e) => e.toLowerCase().contains(text.text.toLowerCase()),
@@ -245,14 +314,21 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                 onSelected: (val) => _nameController.text = val,
                 fieldViewBuilder: (context, controller, node, onSubmitted) {
                   if (_nameController.text.isNotEmpty &&
-                      controller.text.isEmpty)
+                      controller.text.isEmpty) {
                     controller.text = _nameController.text;
+                  }
                   return TextFormField(
                     controller: controller,
                     focusNode: node,
                     decoration: const InputDecoration(
                       labelText: 'Nome do Medicamento *',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 20,
+                      ), // Larger
                     ),
+                    style: const TextStyle(fontSize: 18), // Larger
                     validator: (v) => (v == null || v.length < 3)
                         ? 'Mínimo 3 caracteres'
                         : null,
@@ -260,19 +336,22 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                   );
                 },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _selectedType,
+                      initialValue: _selectedType,
                       items: _types
                           .map(
                             (e) => DropdownMenuItem(value: e, child: Text(e)),
                           )
                           .toList(),
                       onChanged: (v) => setState(() => _selectedType = v!),
-                      decoration: const InputDecoration(labelText: 'Tipo'),
+                      decoration: const InputDecoration(
+                        labelText: 'Tipo',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -281,6 +360,7 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                       controller: _dosageController,
                       decoration: const InputDecoration(
                         labelText: 'Dosagem (ex: 500mg) *',
+                        border: OutlineInputBorder(),
                       ),
                       validator: (v) =>
                           (v == null || v.isEmpty) ? 'Obrigatório' : null,
@@ -288,16 +368,21 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   Expanded(
                     child: TextFormField(
                       controller: _totalQtyController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Qtd Total'),
+                      decoration: const InputDecoration(
+                        labelText: 'Qtd Total (Estoque)',
+                        border: OutlineInputBorder(),
+                      ),
                       validator: (v) =>
                           (int.tryParse(v ?? '') ?? 0) <= 0 ? '> 0' : null,
+                      onChanged: (_) =>
+                          setState(() {}), // trigger rebuild for preview
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -307,14 +392,17 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
                         labelText: 'Qtd / Dose',
+                        border: OutlineInputBorder(),
                       ),
                       validator: (v) =>
                           (int.tryParse(v ?? '') ?? 0) <= 0 ? '> 0' : null,
+                      onChanged: (_) =>
+                          setState(() {}), // trigger rebuild for preview
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
               // 2. Prescription
               Text(
@@ -322,32 +410,36 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 8),
-              if (_imageFile != null)
+              if (_imagePath != null)
                 SizedBox(
                   height: 150,
+                  width: double.infinity,
                   child: kIsWeb
-                      ? Image.network(_imageFile!.path)
-                      : Image.file(_imageFile!),
+                      ? Image.network(_imagePath!, fit: BoxFit.cover)
+                      : Image.file(File(_imagePath!), fit: BoxFit.cover),
                 ),
               TextButton.icon(
                 icon: const Icon(Icons.camera_alt),
                 label: const Text('Adicionar Foto Receita/Med'),
-                onPressed: _pickImage,
+                onPressed: () => _pickImage(ImageSource.camera),
               ),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _doctorController,
                 decoration: const InputDecoration(
                   labelText: 'Médico Prescritor',
+                  border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _reasonController,
                 decoration: const InputDecoration(
                   labelText: 'Motivo / Indicação',
+                  border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
               // 3. Treatment Duration
               Text(
@@ -361,7 +453,10 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                     child: InkWell(
                       onTap: () => _selectDate(true),
                       child: InputDecorator(
-                        decoration: const InputDecoration(labelText: 'Início'),
+                        decoration: const InputDecoration(
+                          labelText: 'Início',
+                          border: OutlineInputBorder(),
+                        ),
                         child: Text(
                           DateFormat('dd/MM/yyyy').format(_startDate),
                         ),
@@ -372,7 +467,10 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                   Expanded(
                     child: _isContinuous
                         ? const InputDecorator(
-                            decoration: InputDecoration(labelText: 'Fim'),
+                            decoration: InputDecoration(
+                              labelText: 'Fim',
+                              border: OutlineInputBorder(),
+                            ),
                             child: Text('Contínuo'),
                           )
                         : InkWell(
@@ -380,6 +478,7 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
                             child: InputDecorator(
                               decoration: const InputDecoration(
                                 labelText: 'Fim',
+                                border: OutlineInputBorder(),
                               ),
                               child: Text(
                                 _endDate != null
@@ -454,21 +553,13 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
               Wrap(
                 spacing: 5,
                 children: List.generate(7, (index) {
-                  final days = [
-                    'S',
-                    'T',
-                    'Q',
-                    'Q',
-                    'S',
-                    'S',
-                    'D',
-                  ]; // Mon starts index 0? Logic: 1=Mon
-                  // Using standard Mon-Sun sequence for checkbox row.
+                  final days = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
                   return FilterChip(
                     label: Text(days[index]),
                     selected: _daysSelected[index],
                     showCheckmark: false,
                     onSelected: (v) => setState(() => _daysSelected[index] = v),
+                    selectedColor: Color(_assignedColor).withValues(alpha: 0.5),
                   );
                 }),
               ),
@@ -476,18 +567,27 @@ class _AddMedicationScreenState extends ConsumerState<AddMedicationScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _notesController,
-                decoration: const InputDecoration(labelText: 'Observações'),
+                decoration: const InputDecoration(
+                  labelText: 'Observações',
+                  border: OutlineInputBorder(),
+                ),
                 maxLines: 3,
               ),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 55, // Larger button
                 child: ElevatedButton(
                   onPressed: _save,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    backgroundColor: Color(
+                      _assignedColor,
+                    ), // Use assigned color
                     foregroundColor: Colors.white,
+                    textStyle: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   child: const Text('SALVAR RECEITA'),
                 ),
