@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "486795717905",
+    "project_id": "meditime-prod",
+    "storage_bucket": "meditime-prod.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:486795717905:android:94f4d1bdf008683add30b0",
+        "android_client_info": {
+          "package_name": "com.example.medi_time"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1uYf5lyRtQiUQudf9VCHVziB5DCr_Zyo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,7 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:medi_time/core/theme.dart';
+import 'package:medi_time/screens/login_screen.dart';
+import 'package:medi_time/screens/meds_list_screen.dart';
+import 'package:medi_time/screens/calendar_screen.dart';
+import 'package:medi_time/core/services/notification_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:medi_time/firebase_options.dart';
 
-void main() {
-  runApp(const MediTimeApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  await NotificationService.initialize();
+
+  runApp(const ProviderScope(child: MediTimeApp()));
 }
 
 class MediTimeApp extends StatelessWidget {
@@ -11,188 +25,67 @@ class MediTimeApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'MediTime',
-      theme: ThemeData(
-        primarySwatch: Colors.indigo,
-        useMaterial3: true,
-      ),
-      home: const DashboardScreen(),
+      theme: AppTheme.lightTheme,
+      home: const LoginScreen(),
       routes: {
-        '/cadastro': (context) => const CadastroMedicamentoScreen(),
+        '/home': (context) => const HomeScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/meds': (context) => const MedsListScreen(),
+        '/calendar': (context) => const CalendarScreen(),
       },
     );
   }
 }
 
-class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
-
-  final List<Map<String, String>> medicamentos = const [
-    {
-      "nome": "Atenolol",
-      "hora": "14:00",
-      "dose": "1 comprimido",
-    },
-    {
-      "nome": "Amoxicilina",
-      "hora": "19:00",
-      "dose": "2 cápsulas",
-    },
-  ];
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard - MediTime'),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Olá, Usuário 👋",
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                "Hoje: 12/11/2025",
-                style: TextStyle(color: Colors.grey[700]),
-              ),
-              const SizedBox(height: 24),
-              Card(
-                color: Colors.red[50],
-                child: ListTile(
-                  leading: Icon(Icons.medication, color: Colors.redAccent),
-                  title: Text("Lembrete: Tome Atenolol às 14:00"),
-                  subtitle: Text("Dose: 1 comprimido"),
-                  trailing: Icon(Icons.notifications_active, color: Colors.redAccent),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                "Medicamentos de Hoje:",
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 12),
-              ...medicamentos.map((med) => Card(
-                    elevation: 0,
-                    color: Colors.indigo[50],
-                    child: ListTile(
-                      leading: Icon(Icons.medication_outlined, color: Colors.indigo),
-                      title: Text(med['nome'] ?? ''),
-                      subtitle: Text("Hora: ${med['hora']} | Dose: ${med['dose']}"),
-                      trailing: Icon(Icons.check_circle_outline, color: Colors.greenAccent),
-                    ),
-                  )),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.add),
-                    label: const Text("Novo Medicamento"),
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/cadastro');
-                    },
-                  ),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.history),
-                    label: const Text("Histórico"),
-                    onPressed: () {},
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Text(
-                "Mais alertas e resumo serão exibidos aqui...",
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-            ],
-          ),
+      appBar: AppBar(title: const Text('MediTime Dashboard')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _HomeButton(
+              icon: Icons.medication,
+              label: 'Meus Remédios',
+              onTap: () => Navigator.pushNamed(context, '/meds'),
+            ),
+            const SizedBox(height: 16),
+            _HomeButton(
+              icon: Icons.calendar_month,
+              label: 'Calendário',
+              onTap: () => Navigator.pushNamed(context, '/calendar'),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class CadastroMedicamentoScreen extends StatefulWidget {
-  const CadastroMedicamentoScreen({super.key});
+class _HomeButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
 
-  @override
-  _CadastroMedicamentoScreenState createState() => _CadastroMedicamentoScreenState();
-}
-
-class _CadastroMedicamentoScreenState extends State<CadastroMedicamentoScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController _nomeController = TextEditingController();
-  final TextEditingController _horaController = TextEditingController();
-  final TextEditingController _doseController = TextEditingController();
-
-  @override
-  void dispose() {
-    _nomeController.dispose();
-    _horaController.dispose();
-    _doseController.dispose();
-    super.dispose();
-  }
-
-  void _submitForm() {
-    if (_formKey.currentState?.validate() ?? false) {
-      // Aqui você pode processar os dados do formulário (exibir, salvar, etc)
-      Navigator.pop(context);
-    }
-  }
+  const _HomeButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cadastrar Medicamento'),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _nomeController,
-                decoration: const InputDecoration(
-                  labelText: 'Nome do Medicamento',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) => value == null || value.isEmpty ? 'Informe o nome' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _horaController,
-                decoration: const InputDecoration(
-                  labelText: 'Hora (ex: 14:00)',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) => value == null || value.isEmpty ? 'Informe a hora' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _doseController,
-                decoration: const InputDecoration(
-                  labelText: 'Dose',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) => value == null || value.isEmpty ? 'Informe a dose' : null,
-              ),
-              const SizedBox(height: 30),
-              ElevatedButton(
-                onPressed: _submitForm,
-                child: const Text('Salvar'),
-              ),
-            ],
-          ),
-        ),
+    return SizedBox(
+      width: 200,
+      height: 60,
+      child: ElevatedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon),
+        label: Text(label),
       ),
     );
   }
